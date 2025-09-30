@@ -66,7 +66,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/pelipop/auth/**").permitAll() // Login
-                                .requestMatchers(HttpMethod.POST, "/pelipop/users/save").permitAll() // Registro de usuarios
+                                .requestMatchers(HttpMethod.POST, "/pelipop/users/**").permitAll() // Registro de usuarios
                                 // Permitir GET para visualización de contenido público
                                 .anyRequest().authenticated()
                 );
