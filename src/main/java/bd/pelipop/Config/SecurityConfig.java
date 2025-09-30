@@ -53,6 +53,9 @@ public class SecurityConfig {
                     CorsConfiguration configuration = new CorsConfiguration();
                     // Usar addAllowedOriginPattern para mayor flexibilidad si los puertos cambian o hay subdominios.
                     configuration.addAllowedOriginPattern("http://localhost:5000");
+                    configuration.addAllowedOriginPattern("http://localhost:3000");
+                    configuration.addAllowedOriginPattern("http://localhost:5173");
+                    configuration.addAllowedOriginPattern("http://localhost:4173");
 
                     configuration.addAllowedMethod("*"); // Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
                     configuration.addAllowedHeader("*"); // Permite todas las cabeceras
