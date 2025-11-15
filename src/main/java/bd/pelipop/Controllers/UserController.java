@@ -51,7 +51,6 @@ public class UserController {
         UserDetails principal = (UserDetails) authentication.getPrincipal();
         String email = principal.getUsername();
 
-        // Ya debería estar en caché porque lo puso UserDetailsServiceImpl
         UserCache cached = userCacheService.getUserFromCache(email);
 
         if (cached == null) {
