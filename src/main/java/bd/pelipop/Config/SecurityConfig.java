@@ -68,7 +68,8 @@ public class SecurityConfig {
                         auth.requestMatchers("/pelipop/auth/**").permitAll() // Login
                                 .requestMatchers(HttpMethod.POST, "/pelipop/users/**").permitAll() // Registro de usuarios
                                 // Permitir GET para visualización de contenido público
-                                .anyRequest().authenticated()
+                                .requestMatchers(HttpMethod.GET, "/pelipop/movies/**").permitAll()
+                                .anyRequest().authenticated() // El resto requiere autenticación
                 );
 
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
