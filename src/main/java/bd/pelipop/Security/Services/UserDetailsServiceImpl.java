@@ -9,9 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -24,36 +26,38 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Autowired
     UserCacheService userCacheService;
 
+    private List<GrantedAuthority> buildAuthorities(String role) {
+        if (role == null || role.isBlank()) {
+            return List.of();
+        }
+        // En la BD guardas "ADMIN" -> Spring espera "ROLE_ADMIN"
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+    }
+
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        // 1. Intento en caché
         UserCache cached = userCacheService.getUserFromCache(email);
         if (cached != null) {
-            logger.info("Autenticación usando usuario del caché: {}", email);
+            logger.info("Autenticación caché: {}", email);
             return new org.springframework.security.core.userdetails.User(
                     cached.getEmail(),
                     cached.getPasswordHash(),
-                    new ArrayList<>()
+                    buildAuthorities(cached.getRole())
             );
         }
 
-        // 2. Miss -> BD
-        logger.info("Primer login o caché expirado para: {}. Consultando BD.", email);
+        logger.info("Miss caché, BD: {}", email);
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    logger.warn("Usuario no encontrado en BD tras miss de caché: {}", email);
-                    return new UsernameNotFoundException("User Not Found with email: " + email);
-                });
+                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with email: " + email));
 
-        // 3. Cachear tras autenticación
         userCacheService.cacheUser(user);
-        logger.info("Usuario {} agregado al caché tras autenticación.", email);
+        logger.info("Usuario cacheado tras login: {}", email);
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPasswordHash(),
-                new ArrayList<>()
+                buildAuthorities(user.getRole())
         );
     }
 }

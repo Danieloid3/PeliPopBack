@@ -1,3 +1,4 @@
+// java
 package bd.pelipop.Services;
 
 import bd.pelipop.DTO.TMDBmovieDTO;
@@ -29,9 +30,12 @@ public class UserService implements IUserService {
 
     @Autowired
     private TmdbService tmdbService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private AnalyticsETLService analyticsETLService;
 
     @Override
     public List<User> getAllUsers() {
@@ -58,7 +62,8 @@ public class UserService implements IUserService {
         }
 
         User saved = userRepository.save(user);
-        logger.info("Usuario creado (no cacheado todavía hasta login): {}", saved.getEmail());
+        analyticsETLService.upsertUser(saved);
+        logger.info("Usuario creado: {}", saved.getEmail());
         return saved;
     }
 
@@ -96,6 +101,7 @@ public class UserService implements IUserService {
         }
 
         User updated = userRepository.save(existingUser);
+        analyticsETLService.upsertUser(updated);
 
         if (wasCached != null) {
             userCacheService.removeFromCache(oldEmail);
@@ -107,14 +113,14 @@ public class UserService implements IUserService {
         return updated;
     }
 
-
     @Override
     public void deleteUser(Long id) {
         User existing = userRepository.findById(id).orElse(null);
         if (existing != null) {
             userCacheService.removeFromCache(existing.getEmail());
             userRepository.deleteById(id);
-            logger.info("Usuario eliminado (y caché invalidado si existía): {}", existing.getEmail());
+            analyticsETLService.removeUser(id);
+            logger.info("Usuario eliminado: {}", existing.getEmail());
         } else {
             logger.warn("Delete solicitado para id={} pero no existe.", id);
         }
