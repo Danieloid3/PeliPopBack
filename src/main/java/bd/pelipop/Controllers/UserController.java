@@ -1,6 +1,7 @@
 // src/main/java/bd/pelipop/Controllers/UserController.java
 package bd.pelipop.Controllers;
 
+import bd.pelipop.DTO.TMDBmovieDTO;
 import bd.pelipop.Models.UserCache;
 import bd.pelipop.Services.UserCacheService;
 import org.slf4j.Logger;
@@ -18,6 +19,9 @@ import bd.pelipop.Security.JWT.JwtUtil;
 import bd.pelipop.Services.IUserService;
 import bd.pelipop.Payload.LoginRequest;
 import bd.pelipop.Payload.AuthResponse;
+import bd.pelipop.Services.TmdbService;
+
+
 
 import java.util.List;
 
@@ -38,6 +42,9 @@ public class UserController {
     @Autowired
     private UserCacheService userCacheService;
 
+    @Autowired
+    private TmdbService tmdbService;
+
     @PostMapping("/auth/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
         logger.info("Intentando login para email: {}", loginRequest.getEmail());
@@ -54,7 +61,6 @@ public class UserController {
         UserCache cached = userCacheService.getUserFromCache(email);
 
         if (cached == null) {
-            // Caso raro: expiró entre autenticación y aquí, o fallo de cache.
             logger.warn("Usuario {} no encontrado en caché justo después de autenticación. Fallback a BD.", email);
             User user = iUserService.findUserByEmail(email);
             if (user == null) {
@@ -67,8 +73,19 @@ public class UserController {
             logger.debug("Login usando entrada de caché para {}", email);
         }
 
+        TMDBmovieDTO favoriteMovieDetails = cached.getFavoriteMovie();
+
         logger.info("Usuario {} autenticado correctamente.", email);
-        AuthResponse response = new AuthResponse(jwt, cached.getId(), cached.getEmail(), cached.getUsername());
+        AuthResponse response = new AuthResponse(
+                jwt,
+                cached.getId(),
+                cached.getEmail(),
+                cached.getUsername(),
+                cached.getGender(),
+                cached.getCountry(),
+                cached.getBirthdate(),
+                favoriteMovieDetails
+        );
         return ResponseEntity.ok(response);
     }
 

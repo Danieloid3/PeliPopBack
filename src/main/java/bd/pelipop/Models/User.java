@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 
@@ -40,8 +43,26 @@ public class User {
     @Column(name = "role", nullable = false, length = 20)
     private String role;
 
+    @Column(name = "gender", length = 50)
+    private String gender;
+
+    @Column(name = "country", length = 100)
+    private String country;
+
+    @Column(name = "birthdate")
+    private LocalDate birthdate;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "favorite_movie", columnDefinition = "jsonb")
+    private String favoriteMovie;
+
+    // Solo para recibir el ID TMDB desde el request; no se persiste
+    @Transient
+    private Long favoriteMovieId;
     @PrePersist
     public void prePersist() {
         this.createdAt = ZonedDateTime.now().toOffsetDateTime();
+
     }
+
 }

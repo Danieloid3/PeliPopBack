@@ -1,5 +1,7 @@
 package bd.pelipop.Services;
 
+import bd.pelipop.DTO.TMDBmovieDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,12 @@ public class UserService implements IUserService {
     @Autowired
     private UserCacheService userCacheService;
 
+    @Autowired
+    private TmdbService tmdbService;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
     @Override
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -38,6 +46,17 @@ public class UserService implements IUserService {
     @Override
     public User createUser(User user) {
         user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+
+        if (user.getFavoriteMovieId() != null) {
+            try {
+                TMDBmovieDTO movie = tmdbService.getMovieDetails(user.getFavoriteMovieId());
+                user.setFavoriteMovie(objectMapper.writeValueAsString(movie));
+            } catch (Exception e) {
+                logger.error("No se pudo resolver favoriteMovieId={}, se guardará null", user.getFavoriteMovieId(), e);
+                user.setFavoriteMovie(null);
+            }
+        }
+
         User saved = userRepository.save(user);
         logger.info("Usuario creado (no cacheado todavía hasta login): {}", saved.getEmail());
         return saved;
@@ -60,6 +79,21 @@ public class UserService implements IUserService {
             existingUser.setPasswordHash(passwordEncoder.encode(userDetails.getPasswordHash()));
         }
         existingUser.setFullName(userDetails.getFullName());
+        existingUser.setGender(userDetails.getGender());
+        existingUser.setCountry(userDetails.getCountry());
+        existingUser.setBirthdate(userDetails.getBirthdate());
+
+        if (userDetails.getFavoriteMovieId() != null) {
+            try {
+                TMDBmovieDTO movie = tmdbService.getMovieDetails(userDetails.getFavoriteMovieId());
+                existingUser.setFavoriteMovie(objectMapper.writeValueAsString(movie));
+            } catch (Exception e) {
+                logger.error("No se pudo resolver favoriteMovieId={} en update, se mantiene valor previo",
+                        userDetails.getFavoriteMovieId(), e);
+            }
+        } else if (userDetails.getFavoriteMovie() != null) {
+            existingUser.setFavoriteMovie(userDetails.getFavoriteMovie());
+        }
 
         User updated = userRepository.save(existingUser);
 
@@ -72,6 +106,7 @@ public class UserService implements IUserService {
 
         return updated;
     }
+
 
     @Override
     public void deleteUser(Long id) {
