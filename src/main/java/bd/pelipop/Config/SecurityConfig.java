@@ -65,6 +65,8 @@ public class SecurityConfig {
                         .requestMatchers("/pelipop/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/pelipop/users/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/movies/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/pelipop/countries").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/pelipop/genders").permitAll()
                         .requestMatchers("/pelipop/admin/**").hasRole("ADMIN") // Protegido aquí
                         .anyRequest().authenticated()
                 );
