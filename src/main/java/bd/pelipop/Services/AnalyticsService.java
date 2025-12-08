@@ -5,6 +5,7 @@ import bd.pelipop.DTO.FavoriteMovieStat;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,10 +34,12 @@ public class AnalyticsService {
 
     @SuppressWarnings("unchecked")
     public AnalyticsSummary buildSummary() {
-        Document summaryDoc = analyticsSummary().find(new Document("_id", "global_summary")).first();
+        Document summaryDoc = analyticsSummary().find()
+                .sort(Sorts.descending("syncTimestamp"))
+                .limit(1)
+                .first();
 
         if (summaryDoc == null) {
-            // Ahora se puede usar el constructor con todos los argumentos.
             return new AnalyticsSummary(0L, Collections.emptyMap(), Collections.emptyMap(), 0.0, Collections.emptyList());
         }
 

@@ -16,8 +16,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -109,7 +111,8 @@ public class AnalyticsETLService {
                 .collect(Collectors.toList());
 
         // 3. LOAD: Guardar el resumen transformado en MongoDB
-        Document summaryDoc = new Document("_id", "global_summary")
+        Document summaryDoc = new Document()
+                .append("syncTimestamp", Date.from(Instant.now())) // Añadir timestamp
                 .append("totalUsers", totalUsers)
                 .append("byGender", byGender)
                 .append("byCountry", byCountry)
@@ -119,7 +122,6 @@ public class AnalyticsETLService {
                                 .append("title", stat.getTitle())
                                 .append("count", stat.getCount()))
                         .collect(Collectors.toList()));
-
-        analyticsSummary().replaceOne(eq("_id", "global_summary"), summaryDoc, new ReplaceOptions().upsert(true));
+        analyticsSummary().insertOne(summaryDoc);
     }
 }
