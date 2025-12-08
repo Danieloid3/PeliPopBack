@@ -21,7 +21,7 @@ public class UserCache implements Serializable {
     private String username;
     private String passwordHash;
     private String role;
-    private String gender;
+    private Gender gender;
     private String country;
     private LocalDate birthdate;
     private TMDBmovieDTO favoriteMovie;
@@ -34,7 +34,8 @@ public class UserCache implements Serializable {
         this.passwordHash = user.getPasswordHash();
         this.role = user.getRole();
         this.gender = user.getGender();
-        this.country = user.getCountry();
+        // CORRECCIÓN: Obtener el nombre del país del objeto Country.
+        this.country = user.getCountry() != null ? user.getCountry().getName() : null;
         this.birthdate = user.getBirthdate();
 
         try {

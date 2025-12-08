@@ -1,11 +1,15 @@
 package bd.pelipop.DTO;
 
-import bd.pelipop.DTO.FavoriteMovieStat;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 import java.util.Map;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AnalyticsSummary {
     private long totalUsers;
     private Map<String, Long> byGender;

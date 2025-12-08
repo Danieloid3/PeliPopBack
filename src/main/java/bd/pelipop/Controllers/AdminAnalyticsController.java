@@ -21,8 +21,8 @@ public class AdminAnalyticsController {
 
     @PostMapping("/sync")
     public ResponseEntity<?> triggerSync() {
-        etlService.syncUsersToMongo();
-        return ResponseEntity.ok("ETL ejecutado");
+        etlService.generateAndStoreAnalytics();
+        return ResponseEntity.ok("Proceso ETL de analíticas ejecutado y resumen almacenado.");
     }
 
     @GetMapping("/summary")

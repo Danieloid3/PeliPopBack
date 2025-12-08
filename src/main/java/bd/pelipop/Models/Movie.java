@@ -1,9 +1,6 @@
 package bd.pelipop.Models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,8 +24,10 @@ public class Movie {
     @Column(name = "release_date")
     private LocalDate releaseDate;
 
-    @Column(name = "country", length = 100)
-    private String country;
+    // CAMBIO: Relación ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "country_id")
+    private Country country;
 
     @Column(name = "language", length = 50)
     private String language;

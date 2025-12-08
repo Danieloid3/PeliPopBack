@@ -1,7 +1,8 @@
-// java
 package bd.pelipop.Services;
 
 import bd.pelipop.DTO.TMDBmovieDTO;
+import bd.pelipop.Models.Country;
+import bd.pelipop.Repositories.CountryRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import bd.pelipop.Models.User;
 import bd.pelipop.Models.UserCache;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserService implements IUserService {
@@ -21,6 +23,9 @@ public class UserService implements IUserService {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    CountryRepository countryRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -33,9 +38,6 @@ public class UserService implements IUserService {
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @Autowired
-    private AnalyticsETLService analyticsETLService;
 
     @Override
     public List<User> getAllUsers() {
@@ -51,6 +53,14 @@ public class UserService implements IUserService {
     public User createUser(User user) {
         user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
 
+        if (user.getCountryId() != null) {
+            Country country = countryRepository.findById(user.getCountryId()).orElse(null);
+            user.setCountry(country);
+            if (country == null) {
+                logger.warn("Se recibió countryId={} pero no se encontró en la BD.", user.getCountryId());
+            }
+        }
+
         if (user.getFavoriteMovieId() != null) {
             try {
                 TMDBmovieDTO movie = tmdbService.getMovieDetails(user.getFavoriteMovieId());
@@ -62,31 +72,49 @@ public class UserService implements IUserService {
         }
 
         User saved = userRepository.save(user);
-        analyticsETLService.upsertUser(saved);
         logger.info("Usuario creado: {}", saved.getEmail());
         return saved;
     }
 
     @Override
     public User updateUser(Long id, User userDetails) {
-        User existingUser = userRepository.findById(id).orElse(null);
-        if (existingUser == null) {
+        Optional<User> existingUserOpt = userRepository.findById(id);
+        if (existingUserOpt.isEmpty()) {
             logger.warn("Update fallido. Usuario id={} no existe.", id);
             return null;
         }
 
+        User existingUser = existingUserOpt.get();
         String oldEmail = existingUser.getEmail();
         UserCache wasCached = userCacheService.getUserFromCache(oldEmail);
 
-        existingUser.setUsername(userDetails.getUsername());
-        existingUser.setEmail(userDetails.getEmail());
+        // CORRECCIÓN: Actualizar solo los campos no nulos para permitir updates parciales
+        if (userDetails.getUsername() != null) {
+            existingUser.setUsername(userDetails.getUsername());
+        }
+        if (userDetails.getEmail() != null) {
+            existingUser.setEmail(userDetails.getEmail());
+        }
         if (userDetails.getPasswordHash() != null && !userDetails.getPasswordHash().isEmpty()) {
             existingUser.setPasswordHash(passwordEncoder.encode(userDetails.getPasswordHash()));
         }
-        existingUser.setFullName(userDetails.getFullName());
-        existingUser.setGender(userDetails.getGender());
-        existingUser.setCountry(userDetails.getCountry());
-        existingUser.setBirthdate(userDetails.getBirthdate());
+        if (userDetails.getFullName() != null) {
+            existingUser.setFullName(userDetails.getFullName());
+        }
+        if (userDetails.getGender() != null) {
+            existingUser.setGender(userDetails.getGender());
+        }
+        if (userDetails.getBirthdate() != null) {
+            existingUser.setBirthdate(userDetails.getBirthdate());
+        }
+        if (userDetails.getPhone() != null) {
+            existingUser.setPhone(userDetails.getPhone());
+        }
+
+        if (userDetails.getCountryId() != null) {
+            countryRepository.findById(userDetails.getCountryId())
+                    .ifPresent(existingUser::setCountry);
+        }
 
         if (userDetails.getFavoriteMovieId() != null) {
             try {
@@ -96,19 +124,16 @@ public class UserService implements IUserService {
                 logger.error("No se pudo resolver favoriteMovieId={} en update, se mantiene valor previo",
                         userDetails.getFavoriteMovieId(), e);
             }
-        } else if (userDetails.getFavoriteMovie() != null) {
-            existingUser.setFavoriteMovie(userDetails.getFavoriteMovie());
         }
 
         User updated = userRepository.save(existingUser);
-        analyticsETLService.upsertUser(updated);
 
-        if (wasCached != null) {
+        if (wasCached != null && !oldEmail.equals(updated.getEmail())) {
             userCacheService.removeFromCache(oldEmail);
-            logger.info("Invalidado caché por actualización de usuario: oldEmail={} newEmail={}", oldEmail, updated.getEmail());
-        } else {
-            logger.debug("Usuario actualizado sin entrada previa en caché: {}", oldEmail);
+            logger.info("Invalidado caché por actualización de email: oldEmail={} newEmail={}", oldEmail, updated.getEmail());
         }
+        // Siempre se actualiza el caché para reflejar los cambios
+        userCacheService.cacheUser(updated);
 
         return updated;
     }
@@ -119,7 +144,6 @@ public class UserService implements IUserService {
         if (existing != null) {
             userCacheService.removeFromCache(existing.getEmail());
             userRepository.deleteById(id);
-            analyticsETLService.removeUser(id);
             logger.info("Usuario eliminado: {}", existing.getEmail());
         } else {
             logger.warn("Delete solicitado para id={} pero no existe.", id);
@@ -128,10 +152,7 @@ public class UserService implements IUserService {
 
     @Override
     public User findUserByUsername(String username) {
-        return userRepository.findAll().stream()
-                .filter(user -> user.getUsername().equals(username))
-                .findFirst()
-                .orElse(null);
+        return userRepository.findByUsername(username).orElse(null);
     }
 
     @Override

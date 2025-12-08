@@ -53,6 +53,7 @@ public class SecurityConfig {
                     configuration.addAllowedOriginPattern("http://localhost:3000");
                     configuration.addAllowedOriginPattern("http://localhost:5173");
                     configuration.addAllowedOriginPattern("http://localhost:4173");
+                    configuration.addAllowedOriginPattern("http://localhost:3001");
                     configuration.addAllowedMethod("*");
                     configuration.addAllowedHeader("*");
                     configuration.setAllowCredentials(true);

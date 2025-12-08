@@ -43,11 +43,14 @@ public class User {
     @Column(name = "role", nullable = false, length = 20)
     private String role;
 
+    // CORRECCIÓN: Usar el Enum Gender
+    @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 50)
-    private String gender;
+    private Gender gender;
 
-    @Column(name = "country", length = 100)
-    private String country;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "country_id")
+    private Country country;
 
     @Column(name = "birthdate")
     private LocalDate birthdate;
@@ -59,10 +62,13 @@ public class User {
     // Solo para recibir el ID TMDB desde el request; no se persiste
     @Transient
     private Long favoriteMovieId;
+
+    // CORRECCIÓN: Campo para recibir el ID del país desde el request.
+    @Transient
+    private Long countryId;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = ZonedDateTime.now().toOffsetDateTime();
-
     }
-
 }

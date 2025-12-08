@@ -1,4 +1,3 @@
-// java
 package bd.pelipop.Services;
 
 import bd.pelipop.DTO.AnalyticsSummary;
@@ -6,14 +5,14 @@ import bd.pelipop.DTO.FavoriteMovieStat;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Accumulators;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.BsonField;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,90 +26,45 @@ public class AnalyticsService {
         this.dbName = dbName;
     }
 
-    private MongoCollection<Document> usersEtl() {
+    private MongoCollection<Document> analyticsSummary() {
         MongoDatabase db = mongoClient.getDatabase(dbName);
-        return db.getCollection("users_etl");
+        return db.getCollection("analytics_summary");
     }
 
+    @SuppressWarnings("unchecked")
     public AnalyticsSummary buildSummary() {
-        MongoCollection<Document> col = usersEtl();
+        Document summaryDoc = analyticsSummary().find(new Document("_id", "global_summary")).first();
 
-        long total = col.countDocuments();
-
-        Map<String, Long> byGender = new HashMap<>();
-        for (Document d : col.aggregate(List.of(
-                Aggregates.group("$gender", Accumulators.sum("count", 1))
-        ))) {
-            String k = Objects.toString(d.get("_id"), "NULL");
-            Number c = (Number) d.get("count");
-            byGender.put(k, c == null ? 0L : c.longValue());
-        }
-
-        Map<String, Long> byCountry = new HashMap<>();
-        for (Document d : col.aggregate(List.of(
-                Aggregates.group("$country", Accumulators.sum("count", 1))
-        ))) {
-            String k = Objects.toString(d.get("_id"), "NULL");
-            Number c = (Number) d.get("count");
-            byCountry.put(k, c == null ? 0L : c.longValue());
-        }
-
-        List<FavoriteMovieStat> topFavs = new ArrayList<>();
-        for (Document d : col.aggregate(List.of(
-                Aggregates.match(new Document("favoriteMovie.id", new Document("$ne", null))),
-                Aggregates.group(
-                        new Document("id", "$favoriteMovie.id").append("title", "$favoriteMovie.title"),
-                        Accumulators.sum("count", 1)
-                ),
-                Aggregates.sort(new Document("count", -1)),
-                Aggregates.limit(10)
-        ))) {
-            Document id = (Document) d.get("_id");
-            Number idNum = id != null ? (Number) id.get("id") : null;
-            String title = id != null ? id.getString("title") : null;
-            Number c = (Number) d.get("count");
-            topFavs.add(new FavoriteMovieStat(
-                    idNum == null ? 0L : idNum.longValue(),
-                    title,
-                    c == null ? 0L : c.longValue()
-            ));
-        }
-
-        double avgAge = 0.0;
-        for (Document d : col.aggregate(List.of(
-                Aggregates.match(new Document("birthdate", new Document("$type", "date"))),
-                Aggregates.group(
-                        null,
-                        new BsonField(
-                                "avgAge",
-                                new Document("$avg",
-                                        new Document("$dateDiff",
-                                                new Document("startDate", "$birthdate")
-                                                        .append("endDate", "$$NOW")
-                                                        .append("unit", "year")
-                                        )
-                                )
-                        )
-                )
-        ))) {
-            Number a = (Number) d.get("avgAge");
-            avgAge = a == null ? 0.0 : a.doubleValue();
+        if (summaryDoc == null) {
+            // Ahora se puede usar el constructor con todos los argumentos.
+            return new AnalyticsSummary(0L, Collections.emptyMap(), Collections.emptyMap(), 0.0, Collections.emptyList());
         }
 
         AnalyticsSummary summary = new AnalyticsSummary();
-        summary.setTotalUsers(total);
+        summary.setTotalUsers(summaryDoc.getLong("totalUsers"));
+
+        Map<String, Long> byGender = (Map<String, Long>) summaryDoc.get("byGender");
         summary.setByGender(byGender.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new
-                )));
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new)));
+
+        Map<String, Long> byCountry = (Map<String, Long>) summaryDoc.get("byCountry");
         summary.setByCountry(byCountry.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new
-                )));
-        summary.setAverageAge(avgAge);
-        summary.setTopFavoriteMovies(topFavs);
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new)));
+
+        summary.setAverageAge(summaryDoc.getDouble("averageAge"));
+
+        List<Document> topMoviesDocs = (List<Document>) summaryDoc.get("topFavoriteMovies");
+        if (topMoviesDocs != null) {
+            List<FavoriteMovieStat> topMovies = topMoviesDocs.stream()
+                    .map(doc -> new FavoriteMovieStat(doc.getLong("id"), doc.getString("title"), doc.getLong("count")))
+                    .collect(Collectors.toList());
+            summary.setTopFavoriteMovies(topMovies);
+        } else {
+            summary.setTopFavoriteMovies(Collections.emptyList());
+        }
+
         return summary;
     }
 }

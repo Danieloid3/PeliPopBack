@@ -2,7 +2,10 @@
 package bd.pelipop.Controllers;
 
 import bd.pelipop.DTO.TMDBmovieDTO;
+import bd.pelipop.Models.Country;
+import bd.pelipop.Models.Gender;
 import bd.pelipop.Models.UserCache;
+import bd.pelipop.Repositories.CountryRepository;
 import bd.pelipop.Services.UserCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +24,9 @@ import bd.pelipop.Payload.LoginRequest;
 import bd.pelipop.Payload.AuthResponse;
 import bd.pelipop.Services.TmdbService;
 
-
-
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/pelipop")
@@ -44,6 +47,17 @@ public class UserController {
 
     @Autowired
     private TmdbService tmdbService;
+
+    // CORRECCIÓN: Inyectar CountryRepository para el nuevo endpoint
+    @Autowired
+    private CountryRepository countryRepository;
+
+    // CORRECCIÓN: Nuevo endpoint para obtener la lista de países
+    @GetMapping("/countries")
+    public List<Country> getAllCountries() {
+        logger.info("Solicitando lista de países.");
+        return countryRepository.findAll();
+    }
 
     @PostMapping("/auth/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
@@ -87,6 +101,13 @@ public class UserController {
                 favoriteMovieDetails
         );
         return ResponseEntity.ok(response);
+    }
+    @GetMapping("/genders")
+    public List<String> getAllGenders() {
+        logger.info("Solicitando lista de géneros.");
+        return Arrays.stream(Gender.values())
+                .map(Enum::name)
+                .collect(Collectors.toList());
     }
 
     @PostMapping("/users/save")

@@ -1,9 +1,11 @@
-// java
 package bd.pelipop.Services;
 
+import bd.pelipop.DTO.FavoriteMovieStat;
 import bd.pelipop.DTO.TMDBmovieDTO;
+import bd.pelipop.Models.Gender;
 import bd.pelipop.Models.User;
 import bd.pelipop.Repositories.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -15,9 +17,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
+import java.time.Period;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.mongodb.client.model.Filters.eq;
 
@@ -39,52 +44,82 @@ public class AnalyticsETLService {
         this.userRepository = userRepository;
     }
 
-    private MongoCollection<Document> usersEtl() {
+    private MongoCollection<Document> analyticsSummary() {
         MongoDatabase db = mongoClient.getDatabase(dbName);
-        return db.getCollection("users_etl");
-    }
-
-    private static Date toDate(LocalDate ld) {
-        if (ld == null) return null;
-        return Date.from(ld.atStartOfDay(ZoneId.systemDefault()).toInstant());
-    }
-
-    private Document favoriteMovieDoc(String favoriteMovieJson) {
-        if (favoriteMovieJson == null) return null;
-        try {
-            TMDBmovieDTO dto = objectMapper.readValue(favoriteMovieJson, TMDBmovieDTO.class);
-            return new Document("id", dto.getId()).append("title", dto.getTitle());
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private Document toUserDoc(User u) {
-        return new Document("_id", u.getId())
-                .append("email", u.getEmail())
-                .append("username", u.getUsername())
-                .append("role", u.getRole())
-                .append("gender", u.getGender())
-                .append("country", u.getCountry())
-                .append("birthdate", toDate(u.getBirthdate()))
-                .append("favoriteMovie", favoriteMovieDoc(u.getFavoriteMovie()));
-    }
-
-    public void upsertUser(User user) {
-        if (user == null || user.getId() == null) return;
-        usersEtl().replaceOne(eq("_id", user.getId()), toUserDoc(user), new ReplaceOptions().upsert(true));
-    }
-
-    public void removeUser(long userId) {
-        usersEtl().deleteOne(eq("_id", userId));
+        return db.getCollection("analytics_summary");
     }
 
     @Scheduled(cron = "${app.analytics.cron}")
-    public void syncUsersToMongo() {
-        List<User> all = userRepository.findAll();
-        MongoCollection<Document> col = usersEtl();
-        for (User u : all) {
-            col.replaceOne(eq("_id", u.getId()), toUserDoc(u), new ReplaceOptions().upsert(true));
-        }
+    public void generateAndStoreAnalytics() {
+        // 1. EXTRACT: Obtener todos los datos de la base de datos relacional
+        List<User> users = userRepository.findAll();
+
+        // 2. TRANSFORM: Calcular las estadísticas en Java
+        long totalUsers = users.size();
+
+        Map<String, Long> byGender = users.stream()
+                .map(User::getGender)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(Gender::name, Collectors.counting()));
+
+        // CORRECCIÓN: Usar el nombre del país para la agrupación.
+        Map<String, Long> byCountry = users.stream()
+                .map(u -> u.getCountry() != null ? u.getCountry().getName() : "Desconocido")
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+        double averageAge = users.stream()
+                .map(User::getBirthdate)
+                .filter(Objects::nonNull)
+                .mapToDouble(birthdate -> Period.between(birthdate, LocalDate.now()).getYears())
+                .average()
+                .orElse(0.0);
+
+        List<FavoriteMovieStat> topFavoriteMovies = users.stream()
+                .map(user -> {
+                    try {
+                        return user.getFavoriteMovie() != null ? objectMapper.readValue(user.getFavoriteMovie(), TMDBmovieDTO.class) : null;
+                    } catch (JsonProcessingException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(TMDBmovieDTO::getId, Collectors.counting()))
+                .entrySet().stream()
+                .map(entry -> {
+                    // Necesitamos obtener el título de la película de nuevo.
+                    // Esto es ineficiente, pero es para el ejemplo.
+                    // Una mejor solución sería cachear los títulos.
+                    String title = users.stream()
+                            .map(user -> {
+                                try {
+                                    return user.getFavoriteMovie() != null ? objectMapper.readValue(user.getFavoriteMovie(), TMDBmovieDTO.class) : null;
+                                } catch (JsonProcessingException e) {
+                                    return null;
+                                }
+                            })
+                            .filter(Objects::nonNull)
+                            .filter(movie -> movie.getId() == entry.getKey())
+                            .findFirst()
+                            .map(TMDBmovieDTO::getTitle)
+                            .orElse("Título no encontrado");
+                    return new FavoriteMovieStat(entry.getKey(), title, entry.getValue());
+                })
+                .sorted((s1, s2) -> Long.compare(s2.getCount(), s1.getCount()))
+                .limit(10)
+                .collect(Collectors.toList());
+
+        // 3. LOAD: Guardar el resumen transformado en MongoDB
+        Document summaryDoc = new Document("_id", "global_summary")
+                .append("totalUsers", totalUsers)
+                .append("byGender", byGender)
+                .append("byCountry", byCountry)
+                .append("averageAge", averageAge)
+                .append("topFavoriteMovies", topFavoriteMovies.stream()
+                        .map(stat -> new Document("id", stat.getId())
+                                .append("title", stat.getTitle())
+                                .append("count", stat.getCount()))
+                        .collect(Collectors.toList()));
+
+        analyticsSummary().replaceOne(eq("_id", "global_summary"), summaryDoc, new ReplaceOptions().upsert(true));
     }
 }
