@@ -1,29 +1,15 @@
-// src/main/java/bd/pelipop/Controllers/UserController.java
 package bd.pelipop.Controllers;
 
-import bd.pelipop.DTO.TMDBmovieDTO;
 import bd.pelipop.Models.Country;
 import bd.pelipop.Models.Gender;
-import bd.pelipop.Models.UserCache;
 import bd.pelipop.Repositories.CountryRepository;
-import bd.pelipop.Services.UserCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import bd.pelipop.Models.User;
-import bd.pelipop.Security.JWT.JwtUtil;
 import bd.pelipop.Services.IUserService;
-import bd.pelipop.Payload.LoginRequest;
-import bd.pelipop.Payload.AuthResponse;
-import bd.pelipop.Services.TmdbService;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,71 +23,14 @@ public class UserController {
     private IUserService iUserService;
 
     @Autowired
-    AuthenticationManager authenticationManager;
-
-    @Autowired
-    JwtUtil jwtUtil;
-
-    @Autowired
-    private UserCacheService userCacheService;
-
-    @Autowired
-    private TmdbService tmdbService;
-
-    // CORRECCIÓN: Inyectar CountryRepository para el nuevo endpoint
-    @Autowired
     private CountryRepository countryRepository;
 
-    // CORRECCIÓN: Nuevo endpoint para obtener la lista de países
     @GetMapping("/countries")
     public List<Country> getAllCountries() {
         logger.info("Solicitando lista de países.");
         return countryRepository.findAll();
     }
 
-    @PostMapping("/auth/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        logger.info("Intentando login para email: {}", loginRequest.getEmail());
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtil.generateJwtToken(authentication);
-
-        UserDetails principal = (UserDetails) authentication.getPrincipal();
-        String email = principal.getUsername();
-
-        UserCache cached = userCacheService.getUserFromCache(email);
-
-        if (cached == null) {
-            logger.warn("Usuario {} no encontrado en caché justo después de autenticación. Fallback a BD.", email);
-            User user = iUserService.findUserByEmail(email);
-            if (user == null) {
-                logger.error("Usuario {} no recuperable tras autenticación exitosa.", email);
-                return ResponseEntity.internalServerError().body("No se pudo recuperar el usuario.");
-            }
-            userCacheService.cacheUser(user);
-            cached = new UserCache(user);
-        } else {
-            logger.debug("Login usando entrada de caché para {}", email);
-        }
-
-        TMDBmovieDTO favoriteMovieDetails = cached.getFavoriteMovie();
-
-        logger.info("Usuario {} autenticado correctamente.", email);
-        AuthResponse response = new AuthResponse(
-                jwt,
-                cached.getId(),
-                cached.getEmail(),
-                cached.getUsername(),
-                cached.getGender(),
-                cached.getCountry(),
-                cached.getBirthdate(),
-                favoriteMovieDetails
-        );
-        return ResponseEntity.ok(response);
-    }
     @GetMapping("/genders")
     public List<String> getAllGenders() {
         logger.info("Solicitando lista de géneros.");
