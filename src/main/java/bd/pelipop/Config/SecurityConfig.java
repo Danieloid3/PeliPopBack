@@ -70,7 +70,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/pelipop/movies/**").permitAll()
                         .requestMatchers("/pelipop/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/healthz", "/health").permitAll()
+                        .requestMatchers("/healthz/**", "/info").permitAll()
                         .anyRequest().authenticated()
                 );
 
