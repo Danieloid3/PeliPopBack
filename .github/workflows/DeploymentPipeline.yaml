@@ -43,6 +43,11 @@ jobs:
           APP_REDIS_TTL: 3600
 
         run: |
+          until redis-cli -h redis ping | grep -q PONG; do
+            echo "Waiting for Redis..."
+            sleep 5
+          done
+
           docker run -d \
             --name pelipop-app \
             -p 5000:5000 \
@@ -59,7 +64,10 @@ jobs:
             pelipop:latest
 
           echo "Waiting for app..."
-          sleep 40
+          until curl -f http://localhost:5000/healthz; do
+            echo "App not ready yet..."
+            sleep 5
+          done
 
           if [ "$(docker inspect -f '{{.State.Running}}' pelipop-app)" != "true" ]; then
             echo "Container crashed"
