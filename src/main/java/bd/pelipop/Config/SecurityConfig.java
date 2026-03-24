@@ -67,9 +67,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/countries").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/genders").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/pelipop/movies/**").permitAll() // Protegido aquí
+                        .requestMatchers(HttpMethod.POST, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/pelipop/movies/**").permitAll()
-                        .requestMatchers("/pelipop/admin/**").hasRole("ADMIN") // Protegido aquí
+                        .requestMatchers("/pelipop/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/healthz", "/health").permitAll()
                         .anyRequest().authenticated()
                 );
 
