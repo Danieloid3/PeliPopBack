@@ -25,8 +25,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Docker image
-        run: docker build -t pelipop:latest .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: pelipop:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run container and test
         env:
@@ -37,35 +46,38 @@ jobs:
           APP_JWT_EXPIRATION_MS: ${{ secrets.APP_JWT_EXPIRATION_MS }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           TMDB_API_URL: ${{ secrets.TMDB_API_URL }}
-
-          REDIS_URL: redis://redis:6379
           REDIS_TIMEOUT: 5000
           APP_REDIS_TTL: 3600
 
         run: |
-          until redis-cli -h redis ping | grep -q PONG; do
-            echo "Waiting for Redis..."
-            sleep 5
-          done
-
           docker run -d \
             --name pelipop-app \
             -p 5000:5000 \
+            --add-host=redis:host-gateway \
             -e "DB_URL=$DB_URL" \
             -e "DB_USERNAME=$DB_USERNAME" \
             -e "DB_PASSWORD=$DB_PASSWORD" \
             -e "APP_JWT_SECRET=$APP_JWT_SECRET" \
             -e "APP_JWT_EXPIRATION_MS=$APP_JWT_EXPIRATION_MS" \
-            -e "REDIS_URL=$REDIS_URL" \
+            -e "REDIS_URL=redis://redis:6379" \
             -e "REDIS_TIMEOUT=$REDIS_TIMEOUT" \
             -e "APP_REDIS_TTL=$APP_REDIS_TTL" \
             -e "TMDB_API_KEY=$TMDB_API_KEY" \
             -e "TMDB_API_URL=$TMDB_API_URL" \
             pelipop:latest
 
-          echo "Waiting for app..."
-          until curl -f http://localhost:5000/healthz; do
-            echo "App not ready yet..."
+          echo "Waiting for app to be ready..."
+          for i in $(seq 1 24); do
+            if curl -sf http://localhost:5000/healthz > /dev/null 2>&1; then
+              echo "App is healthy!"
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "Timed out waiting for app"
+              docker logs pelipop-app
+              exit 1
+            fi
+            echo "Attempt $i/24 - not ready yet, waiting 5s..."
             sleep 5
           done
 
@@ -76,11 +88,10 @@ jobs:
           fi
 
           docker logs pelipop-app
-
-          curl -f http://localhost:5000/healthz
+          curl -sf http://localhost:5000/healthz
 
       - name: Deploy to Render
         if: success() && github.ref == 'refs/heads/prod-deployment' && github.event_name == 'push'
-        run: curl -X POST $RENDER_DEPLOY_HOOK
+        run: curl -X POST "$RENDER_DEPLOY_HOOK"
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
