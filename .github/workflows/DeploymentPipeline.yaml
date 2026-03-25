@@ -46,6 +46,8 @@ jobs:
           APP_JWT_EXPIRATION_MS: ${{ secrets.APP_JWT_EXPIRATION_MS }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           TMDB_API_URL: ${{ secrets.TMDB_API_URL }}
+          APP_MONGO_URI: ${{ secrets.APP_MONGO_URI }}
+          APP_MONGO_DB: ${{ secrets.APP_MONGO_DB }}
           REDIS_TIMEOUT: 5000
           APP_REDIS_TTL: 3600
 
@@ -64,6 +66,8 @@ jobs:
             -e "APP_REDIS_TTL=$APP_REDIS_TTL" \
             -e "TMDB_API_KEY=$TMDB_API_KEY" \
             -e "TMDB_API_URL=$TMDB_API_URL" \
+            -e "APP_MONGO_URI=$APP_MONGO_URI" \
+            -e "APP_MONGO_DB=$APP_MONGO_DB" \
             pelipop:latest
 
           echo "Waiting for app to be ready..."
