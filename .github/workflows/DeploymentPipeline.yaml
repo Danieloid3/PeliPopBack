@@ -48,6 +48,7 @@ jobs:
           TMDB_API_URL: ${{ secrets.TMDB_API_URL }}
           APP_MONGO_URI: ${{ secrets.APP_MONGO_URI }}
           APP_MONGO_DB: ${{ secrets.APP_MONGO_DB }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
           REDIS_TIMEOUT: 5000
           APP_REDIS_TTL: 3600
 
@@ -68,6 +69,7 @@ jobs:
             -e "TMDB_API_URL=$TMDB_API_URL" \
             -e "APP_MONGO_URI=$APP_MONGO_URI" \
             -e "APP_MONGO_DB=$APP_MONGO_DB" \
+            -e "CORS_ALLOWED_ORIGINS=$CORS_ALLOWED_ORIGINS" \
             pelipop:latest
 
           echo "Waiting for app to be ready..."

@@ -1,4 +1,3 @@
-
 package bd.pelipop.Config;
 
 import bd.pelipop.Security.JWT.AuthEntryPointJwt;
@@ -18,10 +17,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
+
+    @Value("${app.cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     @Autowired
     UserDetailsService userDetailsService;
@@ -49,11 +52,9 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration configuration = new CorsConfiguration();
-                    configuration.addAllowedOriginPattern("http://localhost:5000");
-                    configuration.addAllowedOriginPattern("http://localhost:3000");
-                    configuration.addAllowedOriginPattern("http://localhost:5173");
-                    configuration.addAllowedOriginPattern("http://localhost:4173");
-                    configuration.addAllowedOriginPattern("http://localhost:3001");
+                    for (String origin : allowedOrigins) {
+                        configuration.addAllowedOriginPattern(origin.trim());
+                    }
                     configuration.addAllowedMethod("*");
                     configuration.addAllowedHeader("*");
                     configuration.setAllowCredentials(true);
@@ -66,7 +67,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/pelipop/users/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/countries").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/pelipop/countries").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/genders").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/pelipop/genders").permitAll()
                         .requestMatchers(HttpMethod.POST, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/pelipop/movies/**").permitAll()
                         .requestMatchers("/pelipop/admin/**").hasRole("ADMIN")
