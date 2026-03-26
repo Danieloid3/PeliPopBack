@@ -20,7 +20,7 @@ public class AdminAnalyticsController {
     }
 
     @PostMapping("/sync")
-    public ResponseEntity<?> triggerSync() {
+    public ResponseEntity<String> triggerSync() {
         etlService.generateAndStoreAnalytics();
         return ResponseEntity.ok("Proceso ETL de analíticas ejecutado y resumen almacenado.");
     }

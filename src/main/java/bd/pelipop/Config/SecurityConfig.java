@@ -18,13 +18,15 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.beans.factory.annotation.Value;
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity()
 public class SecurityConfig {
 
-    @Value("#{'${app.cors.allowed-origins:}'.split(',')}")
-    private java.util.List<String> allowedOrigins;
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOriginsRaw;
 
     private final AuthEntryPointJwt unauthorizedHandler;
 
@@ -53,8 +55,9 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> {
 
-                    java.util.List<String> cleanedOrigins = allowedOrigins.stream()
-                            .filter(origin -> !origin.isBlank())
+                    List<String> cleanedOrigins = Arrays.stream(allowedOriginsRaw.split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isBlank())
                             .toList();
 
                     CorsConfiguration configuration = new CorsConfiguration();

@@ -26,6 +26,7 @@ import bd.pelipop.Services.TmdbService;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
@@ -60,7 +61,7 @@ public class UserController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<Object> authenticateUser(@RequestBody LoginRequest loginRequest) {
         logger.info("Intentando login para email: {}", loginRequest.getEmail());
 
         Authentication authentication = authenticationManager.authenticate(
@@ -102,6 +103,7 @@ public class UserController {
         );
         return ResponseEntity.ok(response);
     }
+
     @GetMapping("/genders")
     public List<String> getAllGenders() {
         logger.info("Solicitando lista de géneros.");
@@ -167,7 +169,7 @@ public class UserController {
     }
 
     @DeleteMapping("/users/delete/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Object> deleteUser(@PathVariable Long id) {
         logger.info("Eliminando usuario ID={}", id);
         User user = iUserService.getUserById(id);
         if (user == null) {
