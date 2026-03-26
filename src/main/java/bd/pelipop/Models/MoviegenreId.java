@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.Hibernate;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -13,6 +14,8 @@ import java.util.Objects;
 @Setter
 @Embeddable
 public class MoviegenreId implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 979125368074272570L;
     @Column(name = "movie_id", nullable = false)
     private Long movieId;

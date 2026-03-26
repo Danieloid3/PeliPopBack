@@ -1,9 +1,8 @@
 package bd.pelipop.Models;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-
 import bd.pelipop.DTO.TMDBmovieDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
@@ -14,6 +13,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserCache implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private Long id;

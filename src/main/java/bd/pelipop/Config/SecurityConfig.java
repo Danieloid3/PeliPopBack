@@ -10,8 +10,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -20,17 +20,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity()
 public class SecurityConfig {
 
-    @Value("${app.cors.allowed-origins}")
-    private String[] allowedOrigins;
+    @Value("#{'${app.cors.allowed-origins:}'.split(',')}")
+    private java.util.List<String> allowedOrigins;
+
+    private final AuthEntryPointJwt unauthorizedHandler;
 
     @Autowired
-    UserDetailsService userDetailsService;
-
-    @Autowired
-    private AuthEntryPointJwt unauthorizedHandler;
+    public SecurityConfig(AuthEntryPointJwt unauthorizedHandler) {
+        this.unauthorizedHandler = unauthorizedHandler;
+    }
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -49,15 +50,22 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> {
+
+                    java.util.List<String> cleanedOrigins = allowedOrigins.stream()
+                            .filter(origin -> !origin.isBlank())
+                            .toList();
+
                     CorsConfiguration configuration = new CorsConfiguration();
-                    for (String origin : allowedOrigins) {
-                        configuration.addAllowedOriginPattern(origin.trim());
+
+                    if (!cleanedOrigins.isEmpty()) {
+                        configuration.setAllowedOrigins(cleanedOrigins);
+                        configuration.setAllowCredentials(true);
                     }
+
                     configuration.addAllowedMethod("*");
                     configuration.addAllowedHeader("*");
-                    configuration.setAllowCredentials(true);
                     return configuration;
                 }))
                 .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedHandler))
@@ -67,13 +75,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/pelipop/users/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/countries").permitAll()
-                        .requestMatchers(HttpMethod.HEAD, "/pelipop/countries").permitAll()
                         .requestMatchers(HttpMethod.GET, "/pelipop/genders").permitAll()
-                        .requestMatchers(HttpMethod.HEAD, "/pelipop/genders").permitAll()
                         .requestMatchers(HttpMethod.POST, "/pelipop/movies/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/pelipop/movies/**").permitAll()
                         .requestMatchers("/pelipop/admin/**").hasRole("ADMIN")
                         .requestMatchers("/healthz/**", "/info").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/keep-alive/ping").permitAll()
                         .anyRequest().authenticated()
                 );
 

@@ -50,7 +50,7 @@ public class UserCacheService {
     public void removeFromCache(String email) {
         if (email == null) return;
         String key = KEY_PREFIX + email;
-        boolean deleted = Boolean.TRUE.equals(redisTemplate.delete(key));
+        boolean deleted = redisTemplate.delete(key);
         if (deleted) {
             logger.info("Usuario removido del caché: {}", email);
         } else {
