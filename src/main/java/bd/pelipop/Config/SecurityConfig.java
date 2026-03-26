@@ -57,7 +57,7 @@ public class SecurityConfig {
 
                     List<String> cleanedOrigins = Arrays.stream(allowedOriginsRaw.split(","))
                             .map(String::trim)
-                            .filter(s -> !s.isBlank())
+                            .filter(origin -> !origin.isBlank())
                             .toList();
 
                     CorsConfiguration configuration = new CorsConfiguration();
